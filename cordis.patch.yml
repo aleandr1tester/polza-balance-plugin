@@ -1,0 +1,16 @@
+# Bundle patch: the profile layer that inserts this plugin's Loader row.
+#
+# Applied as one insert over the profile root. The row is the plugin itself
+# (`dsh-polza-balance`), so the same package carries the host half, the browser
+# half and this patch.
+#
+# `config` is read by the browser half when the Loader hands it over; every key
+# is optional and the widget also lets you edit these values in its own panel
+# (persisted in localStorage, which wins over this file).
+- insert:
+    - id: ui-polza-balance
+      name: 'dsh-polza-balance'
+      config:
+        token: ''
+        endpoint: 'https://polza.ai/api/mcp'
+        refreshSeconds: 60

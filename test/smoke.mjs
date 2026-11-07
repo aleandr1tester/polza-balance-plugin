@@ -1,0 +1,136 @@
+// Smoke test for the dsh-polza-balance client bundle: executes the module-loader
+// factory against a minimal window/fake-React shim, then exercises the real
+// polza.ai MCP read path and the incremental spend tracking.
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const PLUGIN_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const bundlePath = path.join(PLUGIN_ROOT, "lib", "client.js");
+const source = fs.readFileSync(bundlePath, "utf8");
+
+const registered = [];
+globalThis.window = {
+	__ModuleLoader__: { load: (definition) => registered.push(definition) },
+	localStorage: {
+		store: new Map(),
+		getItem(key) {
+			return this.store.has(key) ? this.store.get(key) : null;
+		},
+		setItem(key, value) {
+			this.store.set(key, String(value));
+		},
+	},
+	matchMedia: () => ({ matches: false, addEventListener() {}, removeEventListener() {} }),
+	setInterval: () => 1,
+	clearInterval: () => {},
+};
+globalThis.document = {
+	body: { getAttribute: () => null },
+	addEventListener() {},
+	removeEventListener() {},
+	visibilityState: "visible",
+};
+globalThis.MutationObserver = class {
+	observe() {}
+	disconnect() {}
+};
+
+const fakeReact = {
+	createElement: (type, props, ...children) => ({ type, props: props || {}, children: children.flat(Infinity).filter((c) => c != null) }),
+	useState: (initial) => [typeof initial === "function" ? initial() : initial, () => {}],
+	useEffect: () => {},
+	useLayoutEffect: () => {},
+	useRef: (initial) => ({ current: initial }),
+	useCallback: (fn) => fn,
+	useMemo: (fn) => fn(),
+};
+const moduleTable = { react: fakeReact };
+
+new Function("window", source)(globalThis.window);
+
+if (registered.length !== 1) throw new Error(`expected one registration, got ${registered.length}`);
+const definition = registered[0];
+console.log("registered id:", definition.id);
+
+const mod = definition.factory((specifier) => {
+	if (!(specifier in moduleTable)) throw new Error(`unexpected require("${specifier}")`);
+	return moduleTable[specifier];
+});
+
+console.log("exports:", Object.keys(mod).join(", "));
+if (typeof mod.apply !== "function") throw new Error("missing apply");
+if (!Array.isArray(mod.inject) || !mod.inject.includes("slots")) throw new Error("missing slots inject");
+
+// --- registration through a fake slot registry ---
+const registrations = [];
+const ctx = {
+	slots: {
+		inject(name, factory) {
+			console.log("slots.inject:", name);
+			return factory();
+		},
+		register(options, component) {
+			registrations.push({ options, component });
+			return () => {};
+		},
+	},
+};
+mod.apply(ctx, { token: "test-token", refreshSeconds: 60 });
+console.log("slot registrations:", registrations.map((r) => r.options.name + "/" + r.options.id).join(", "));
+
+// --- render the component (unwrap function components) ---
+let tree = registrations[0].component();
+while (tree && typeof tree.type === "function") tree = tree.type(tree.props);
+console.log("root tree type:", tree.type, "style.position:", tree.props.style.position);
+const card = tree.children.find((child) => child && child.type === "div" && child.props.style && child.props.style.borderRadius === 12);
+if (!card) throw new Error("card element not rendered");
+
+// --- placement math: clamping and the profile-button anchor ---
+const anchorNode = { getBoundingClientRect: () => ({ left: 8, top: 700, right: 272, bottom: 736, width: 264, height: 36 }) };
+globalThis.document.querySelectorAll = (selector) => (selector === "[data-signed-out]" ? [anchorNode] : []);
+const anchorTop = mod.__internals.accountAnchorTop();
+if (anchorTop !== 700) throw new Error(`accountAnchorTop expected 700, got ${anchorTop}`);
+const placement = mod.__internals.clampPos({ left: 16, top: anchorTop - 110 - 10 }, { width: 208, height: 110 });
+if (placement.top + 110 > anchorTop) throw new Error("default placement overlaps the profile button");
+if (placement.left < 8) throw new Error("default placement escaped the viewport");
+const clampedLow = mod.__internals.clampPos({ left: -50, top: -20 }, { width: 208, height: 110 });
+if (clampedLow.left !== 8 || clampedLow.top !== 8) throw new Error(`low clamp failed: ${JSON.stringify(clampedLow)}`);
+const clampedHigh = mod.__internals.clampPos({ left: 5000, top: 5000 }, { width: 208, height: 110 });
+if (clampedHigh.left !== 1280 - 208 - 8 || clampedHigh.top !== 800 - 110 - 8) {
+	throw new Error(`high clamp failed: ${JSON.stringify(clampedHigh)}`);
+}
+mod.__internals.writePos({ left: 32, top: 240 });
+const storedPos = mod.__internals.readPos();
+if (!storedPos || storedPos.left !== 32 || storedPos.top !== 240) throw new Error("position was not persisted");
+console.log("position math: anchor=700 placement=", placement, "clamp ok, persisted", storedPos);
+
+// --- real MCP read path + incremental spend tracking ---
+const TOKEN = process.env.POLZA_TOKEN;
+if (!TOKEN) throw new Error("set POLZA_TOKEN to run the live part of this test");
+const settings = mod.__internals.resolveSettings({ token: TOKEN, refreshSeconds: 60 });
+console.log("settings:", {
+	endpoint: settings.endpoint,
+	refreshSeconds: settings.refreshSeconds,
+	token: settings.token.slice(0, 12) + "…",
+});
+
+const scan = await mod.__internals.scanSpentToday(settings);
+console.log("scanSpentToday:", scan);
+const data = await mod.__internals.readBalance(settings, scan);
+console.log("readBalance:", { ...data, spendState: undefined });
+console.log(
+	"formatted:",
+	"Баланс " + mod.__internals.money(data.balance) + " руб",
+	"| Потрачено за сутки " + mod.__internals.money(data.spentToday) + " руб",
+	"| Всего потрачено " + mod.__internals.money(data.spentTotal) + " руб",
+);
+if (typeof data.balance !== "number") throw new Error("balance did not parse");
+if (typeof data.spentToday !== "number" || data.spentToday <= 0) throw new Error("today spend did not parse");
+if (typeof data.spentTotal !== "number" || data.spentTotal <= 0) throw new Error("total spend did not parse");
+
+const nextSpend = await mod.__internals.updateSpentToday(settings, scan);
+if (nextSpend.sum < scan.sum) throw new Error(`spend went backwards: ${nextSpend.sum} < ${scan.sum}`);
+console.log("incremental spend:", nextSpend.sum);
+
+console.log("\nOK");
