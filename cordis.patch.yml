@@ -7,6 +7,9 @@
 # `config` is read by the browser half when the Loader hands it over; every key
 # is optional and the widget also lets you edit these values in its own panel
 # (persisted in localStorage, which wins over this file).
+#
+# The token stays out of this repository: it is entered in the widget's settings
+# panel (or in the installed profile copy of this file) and kept locally.
 - insert:
     - id: ui-polza-balance
       name: 'dsh-polza-balance'
