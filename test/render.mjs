@@ -90,6 +90,7 @@ console.log(darkHtml.slice(0, 300), "…");
 for (const needle of [
 	"polza.ai",
 	"Баланс",
+	"Полный баланс",
 	"Потрачено за сутки",
 	"Всего потрачено",
 	"position:fixed",
@@ -105,7 +106,7 @@ for (const needle of [
 ]) {
 	if (!darkHtml.includes(needle)) throw new Error(`missing in dark HTML: ${needle}`);
 }
-for (const banned of ["Лимит в сутки", "Токен polza.ai", "rgba(15, 23, 42, 0.10)", "font-size:12.5px", "руб"]) {
+for (const banned of ["Лимит в сутки", "Токен polza.ai", "rgba(15, 23, 42, 0.10)", "font-size:12.5px", "руб", "Зарезервировано"]) {
 	if (darkHtml.includes(banned)) throw new Error(`unexpected in card HTML: ${banned}`);
 }
 if (!/position:fixed/.test(darkHtml)) throw new Error("not fixed");

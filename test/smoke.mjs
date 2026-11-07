@@ -106,6 +106,21 @@ if (fmt.rub(1236.36) !== "1'236,36 ₽") throw new Error(`rub() suffix mismatch:
 if (fmt.rub(null) !== "—") throw new Error(`rub(null) must stay a dash, got "${fmt.rub(null)}"`);
 console.log("money format:", formatCases.map(([value]) => fmt.rub(value)).join(" | "));
 
+// --- reserved amount extraction: balance wins, details is the fallback ---
+const reservedCases = [
+	[{ reservedAmount: "42.78" }, null, 42.78],
+	[{}, { balance: { reservedAmount: "1.50" } }, 1.5],
+	[{ reservedAmount: "0.00" }, null, 0],
+	[null, null, null],
+];
+for (const [balanceFixture, detailsFixture, expected] of reservedCases) {
+	const actual = fmt.reservedOf(balanceFixture, detailsFixture);
+	if (actual !== expected) {
+		throw new Error(`reservedOf(${JSON.stringify(balanceFixture)}, ${JSON.stringify(detailsFixture)}) = ${actual}, expected ${expected}`);
+	}
+}
+console.log("reservedOf: ok");
+
 // --- placement math: clamping and the profile-button anchor ---
 const anchorNode = { getBoundingClientRect: () => ({ left: 8, top: 700, right: 272, bottom: 736, width: 264, height: 36 }) };
 globalThis.document.querySelectorAll = (selector) => (selector === "[data-signed-out]" ? [anchorNode] : []);
@@ -141,11 +156,15 @@ const data = await mod.__internals.readBalance(settings, scan);
 console.log("readBalance:", { ...data, spendState: undefined });
 console.log(
 	"formatted:",
-	"Баланс " + mod.__internals.rub(data.balance),
+	"Баланс " + mod.__internals.rub(data.available),
+	"| Полный баланс " + mod.__internals.rub(data.balance),
+	"| Зарезервировано " + mod.__internals.rub(data.reserved),
 	"| Потрачено за сутки " + mod.__internals.rub(data.spentToday),
 	"| Всего потрачено " + mod.__internals.rub(data.spentTotal),
 );
 if (typeof data.balance !== "number") throw new Error("balance did not parse");
+if (typeof data.available !== "number") throw new Error("available did not parse");
+if (typeof data.reserved !== "number") throw new Error("reserved did not parse");
 if (typeof data.spentToday !== "number" || data.spentToday <= 0) throw new Error("today spend did not parse");
 if (typeof data.spentTotal !== "number" || data.spentTotal <= 0) throw new Error("total spend did not parse");
 
