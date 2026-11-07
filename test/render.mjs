@@ -106,12 +106,22 @@ for (const needle of [
 ]) {
 	if (!darkHtml.includes(needle)) throw new Error(`missing in dark HTML: ${needle}`);
 }
+// The row stays hidden by default (no data, permanent display off) …
 for (const banned of ["Лимит в сутки", "Токен polza.ai", "rgba(15, 23, 42, 0.10)", "font-size:12.5px", "руб", "Зарезервировано"]) {
 	if (darkHtml.includes(banned)) throw new Error(`unexpected in card HTML: ${banned}`);
 }
 if (!/position:fixed/.test(darkHtml)) throw new Error("not fixed");
 if (!/left:\d+px/.test(darkHtml)) throw new Error("no left anchor");
 if (!/top:\d+px/.test(darkHtml)) throw new Error("no top anchor");
+
+// … but the setting forces it into the markup even before any data arrives.
+const forced = mod.__internals.resolveSettings({ token: "smoke", alwaysShowReserved: true });
+const forcedHtml = ReactDOMServer.renderToStaticMarkup(
+	React.createElement(mod.PolzaBalanceWidget, { initialSettings: forced }),
+);
+if (!forcedHtml.includes("Зарезервировано")) throw new Error("alwaysShowReserved did not render the reserved row");
+if (forcedHtml.includes("#f87171")) throw new Error("a zero reserve must not use the danger colour");
+console.log("forced reserved row: ok");
 
 // Settings sanitization: the removed daily-limit field must not survive.
 const legacy = mod.__internals.sanitize(

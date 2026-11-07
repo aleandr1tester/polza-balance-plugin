@@ -14,3 +14,4 @@
         token: ''
         endpoint: 'https://polza.ai/api/mcp'
         refreshSeconds: 60
+        alwaysShowReserved: false

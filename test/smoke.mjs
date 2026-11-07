@@ -128,6 +128,31 @@ if (paletteDark.danger !== "#f87171") throw new Error(`dark danger = ${paletteDa
 if (paletteLight.danger !== "#dc2626") throw new Error(`light danger = ${paletteLight.danger}`);
 console.log("reserved colour: dark", paletteDark.danger, "| light", paletteLight.danger);
 
+// --- reserve row visibility: on-hold by default, permanent when the setting is on ---
+const reservedVisibility = [
+	[{ alwaysShowReserved: false }, 0, false],
+	[{ alwaysShowReserved: false }, null, false],
+	[{ alwaysShowReserved: false }, 42.78, true],
+	[{ alwaysShowReserved: true }, 0, true],
+	[{ alwaysShowReserved: true }, null, true],
+	[{ alwaysShowReserved: true }, 42.78, true],
+];
+for (const [settingsFixture, reservedFixture, expected] of reservedVisibility) {
+	const actual = fmt.shouldShowReserved(settingsFixture, reservedFixture);
+	if (actual !== expected) {
+		throw new Error(
+			`shouldShowReserved(${JSON.stringify(settingsFixture)}, ${reservedFixture}) = ${actual}, expected ${expected}`,
+		);
+	}
+}
+if (fmt.sanitize({ alwaysShowReserved: true }, { alwaysShowReserved: false }).alwaysShowReserved !== true) {
+	throw new Error("alwaysShowReserved was not preserved by sanitize()");
+}
+if (fmt.sanitize({}, { alwaysShowReserved: false }).alwaysShowReserved !== false) {
+	throw new Error("alwaysShowReserved must default to false");
+}
+console.log("reserved visibility: ok");
+
 // --- placement math: clamping and the profile-button anchor ---
 const anchorNode = { getBoundingClientRect: () => ({ left: 8, top: 700, right: 272, bottom: 736, width: 264, height: 36 }) };
 globalThis.document.querySelectorAll = (selector) => (selector === "[data-signed-out]" ? [anchorNode] : []);
