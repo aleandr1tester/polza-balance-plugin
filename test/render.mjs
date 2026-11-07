@@ -105,7 +105,7 @@ for (const needle of [
 ]) {
 	if (!darkHtml.includes(needle)) throw new Error(`missing in dark HTML: ${needle}`);
 }
-for (const banned of ["Лимит в сутки", "Токен polza.ai", "rgba(15, 23, 42, 0.10)", "font-size:12.5px"]) {
+for (const banned of ["Лимит в сутки", "Токен polza.ai", "rgba(15, 23, 42, 0.10)", "font-size:12.5px", "руб"]) {
 	if (darkHtml.includes(banned)) throw new Error(`unexpected in card HTML: ${banned}`);
 }
 if (!/position:fixed/.test(darkHtml)) throw new Error("not fixed");
@@ -119,6 +119,10 @@ const legacy = mod.__internals.sanitize(
 );
 if ("dailyLimitRub" in legacy) throw new Error("dailyLimitRub must be dropped from settings");
 if (legacy.refreshSeconds !== 15) throw new Error(`refreshSeconds floor failed: ${legacy.refreshSeconds}`);
+
+// Currency formatting: apostrophe thousands separator and the ₽ sign.
+if (mod.__internals.rub(1236.36) !== "1'236,36 ₽") throw new Error(`rub() = ${mod.__internals.rub(1236.36)}`);
+if (mod.__internals.money(1234567.891) !== "1'234'567,89") throw new Error("thousands grouping failed");
 
 documentShim.body.getAttribute = () => "false";
 const lightHtml = ReactDOMServer.renderToStaticMarkup(

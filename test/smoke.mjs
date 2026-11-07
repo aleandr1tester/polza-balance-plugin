@@ -86,6 +86,26 @@ console.log("root tree type:", tree.type, "style.position:", tree.props.style.po
 const card = tree.children.find((child) => child && child.type === "div" && child.props.style && child.props.style.borderRadius === 12);
 if (!card) throw new Error("card element not rendered");
 
+// --- money formatting: apostrophe thousands separator, ₽ suffix ---
+const fmt = mod.__internals;
+const formatCases = [
+	[1236.36, "1'236,36"],
+	[12, "12,00"],
+	[0.5, "0,50"],
+	[1234567.891, "1'234'567,89"],
+	[999.999, "1'000,00"],
+	[-42.5, "-42,50"],
+	[null, "—"],
+	["113.35", "113,35"],
+];
+for (const [input, expected] of formatCases) {
+	const actual = fmt.money(input);
+	if (actual !== expected) throw new Error(`money(${JSON.stringify(input)}) = "${actual}", expected "${expected}"`);
+}
+if (fmt.rub(1236.36) !== "1'236,36 ₽") throw new Error(`rub() suffix mismatch: ${fmt.rub(1236.36)}`);
+if (fmt.rub(null) !== "—") throw new Error(`rub(null) must stay a dash, got "${fmt.rub(null)}"`);
+console.log("money format:", formatCases.map(([value]) => fmt.rub(value)).join(" | "));
+
 // --- placement math: clamping and the profile-button anchor ---
 const anchorNode = { getBoundingClientRect: () => ({ left: 8, top: 700, right: 272, bottom: 736, width: 264, height: 36 }) };
 globalThis.document.querySelectorAll = (selector) => (selector === "[data-signed-out]" ? [anchorNode] : []);
@@ -121,9 +141,9 @@ const data = await mod.__internals.readBalance(settings, scan);
 console.log("readBalance:", { ...data, spendState: undefined });
 console.log(
 	"formatted:",
-	"Баланс " + mod.__internals.money(data.balance) + " руб",
-	"| Потрачено за сутки " + mod.__internals.money(data.spentToday) + " руб",
-	"| Всего потрачено " + mod.__internals.money(data.spentTotal) + " руб",
+	"Баланс " + mod.__internals.rub(data.balance),
+	"| Потрачено за сутки " + mod.__internals.rub(data.spentToday),
+	"| Всего потрачено " + mod.__internals.rub(data.spentTotal),
 );
 if (typeof data.balance !== "number") throw new Error("balance did not parse");
 if (typeof data.spentToday !== "number" || data.spentToday <= 0) throw new Error("today spend did not parse");
