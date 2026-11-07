@@ -121,6 +121,13 @@ for (const [balanceFixture, detailsFixture, expected] of reservedCases) {
 }
 console.log("reservedOf: ok");
 
+// --- palette: the reserve amount renders in its danger colour ---
+const paletteDark = fmt.paletteColors(true);
+const paletteLight = fmt.paletteColors(false);
+if (paletteDark.danger !== "#f87171") throw new Error(`dark danger = ${paletteDark.danger}`);
+if (paletteLight.danger !== "#dc2626") throw new Error(`light danger = ${paletteLight.danger}`);
+console.log("reserved colour: dark", paletteDark.danger, "| light", paletteLight.danger);
+
 // --- placement math: clamping and the profile-button anchor ---
 const anchorNode = { getBoundingClientRect: () => ({ left: 8, top: 700, right: 272, bottom: 736, width: 264, height: 36 }) };
 globalThis.document.querySelectorAll = (selector) => (selector === "[data-signed-out]" ? [anchorNode] : []);
