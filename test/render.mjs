@@ -138,6 +138,7 @@ const forcedFullHtml = ReactDOMServer.renderToStaticMarkup(
 	React.createElement(mod.PolzaBalanceWidget, { initialSettings: forcedFull }),
 );
 if (!forcedFullHtml.includes("Полный баланс")) throw new Error("alwaysShowFullBalance did not render the full-balance row");
+if (!forcedFullHtml.includes("#60a5fa")) throw new Error("the full-balance amount must use the blue accent colour");
 if (forcedFullHtml.includes("Зарезервировано")) throw new Error("alwaysShowFullBalance must not show the reserved row");
 console.log("forced full-balance row: ok");
 
@@ -159,6 +160,15 @@ const lightHtml = ReactDOMServer.renderToStaticMarkup(
 );
 if (!lightHtml.includes("rgba(255, 255, 255, 0.94)")) throw new Error("light palette not applied");
 console.log("light html length:", lightHtml.length);
+
+// The blue amount follows the light palette too.
+const lightForced = ReactDOMServer.renderToStaticMarkup(
+	React.createElement(mod.PolzaBalanceWidget, {
+		initialSettings: mod.__internals.resolveSettings({ token: "smoke", alwaysShowFullBalance: true }),
+	}),
+);
+if (!lightForced.includes("#2563eb")) throw new Error("the light theme must use #2563eb for the full-balance amount");
+console.log("light full-balance colour: ok");
 
 console.log("card text:", darkHtml.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim());
 console.log("\nOK: render passed for both themes");
