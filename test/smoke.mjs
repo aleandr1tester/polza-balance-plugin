@@ -153,6 +153,33 @@ if (fmt.sanitize({}, { alwaysShowReserved: false }).alwaysShowReserved !== false
 }
 console.log("reserved visibility: ok");
 
+// --- full-balance row visibility: follows the reserved row, plus its own setting ---
+const fullBalanceVisibility = [
+	[{ alwaysShowFullBalance: false }, 0, false],
+	[{ alwaysShowFullBalance: false }, null, false],
+	[{ alwaysShowFullBalance: false }, 42.78, true],
+	[{ alwaysShowFullBalance: true }, 0, true],
+	[{ alwaysShowFullBalance: true }, null, true],
+	[{ alwaysShowFullBalance: true }, 42.78, true],
+	[{ alwaysShowFullBalance: false, alwaysShowReserved: true }, 0, true],
+	[{ alwaysShowFullBalance: false, alwaysShowReserved: true }, null, true],
+];
+for (const [settingsFixture, reservedFixture, expected] of fullBalanceVisibility) {
+	const actual = fmt.shouldShowFullBalance(settingsFixture, reservedFixture);
+	if (actual !== expected) {
+		throw new Error(
+			`shouldShowFullBalance(${JSON.stringify(settingsFixture)}, ${reservedFixture}) = ${actual}, expected ${expected}`,
+		);
+	}
+}
+if (fmt.sanitize({ alwaysShowFullBalance: true }, { alwaysShowFullBalance: false }).alwaysShowFullBalance !== true) {
+	throw new Error("alwaysShowFullBalance was not preserved by sanitize()");
+}
+if (fmt.sanitize({}, { alwaysShowFullBalance: false }).alwaysShowFullBalance !== false) {
+	throw new Error("alwaysShowFullBalance must default to false");
+}
+console.log("full balance visibility: ok");
+
 // --- placement math: clamping and the profile-button anchor ---
 const anchorNode = { getBoundingClientRect: () => ({ left: 8, top: 700, right: 272, bottom: 736, width: 264, height: 36 }) };
 globalThis.document.querySelectorAll = (selector) => (selector === "[data-signed-out]" ? [anchorNode] : []);

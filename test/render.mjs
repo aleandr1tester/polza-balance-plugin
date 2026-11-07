@@ -90,7 +90,6 @@ console.log(darkHtml.slice(0, 300), "…");
 for (const needle of [
 	"polza.ai",
 	"Баланс",
-	"Полный баланс",
 	"Потрачено за сутки",
 	"Всего потрачено",
 	"position:fixed",
@@ -106,22 +105,41 @@ for (const needle of [
 ]) {
 	if (!darkHtml.includes(needle)) throw new Error(`missing in dark HTML: ${needle}`);
 }
-// The row stays hidden by default (no data, permanent display off) …
-for (const banned of ["Лимит в сутки", "Токен polza.ai", "rgba(15, 23, 42, 0.10)", "font-size:12.5px", "руб", "Зарезервировано"]) {
+// Both optional rows stay hidden by default (no data, permanent display off) …
+for (const banned of [
+	"Лимит в сутки",
+	"Токен polza.ai",
+	"rgba(15, 23, 42, 0.10)",
+	"font-size:12.5px",
+	"руб",
+	"Зарезервировано",
+	"Полный баланс",
+]) {
 	if (darkHtml.includes(banned)) throw new Error(`unexpected in card HTML: ${banned}`);
 }
 if (!/position:fixed/.test(darkHtml)) throw new Error("not fixed");
 if (!/left:\d+px/.test(darkHtml)) throw new Error("no left anchor");
 if (!/top:\d+px/.test(darkHtml)) throw new Error("no top anchor");
 
-// … but the setting forces it into the markup even before any data arrives.
+// … but the settings force them into the markup even before any data arrives.
+// "Полный баланс" follows "Зарезервировано": forcing the reserve shows both.
 const forced = mod.__internals.resolveSettings({ token: "smoke", alwaysShowReserved: true });
 const forcedHtml = ReactDOMServer.renderToStaticMarkup(
 	React.createElement(mod.PolzaBalanceWidget, { initialSettings: forced }),
 );
 if (!forcedHtml.includes("Зарезервировано")) throw new Error("alwaysShowReserved did not render the reserved row");
+if (!forcedHtml.includes("Полный баланс")) throw new Error("the full-balance row must follow the reserved row");
 if (forcedHtml.includes("#f87171")) throw new Error("a zero reserve must not use the danger colour");
-console.log("forced reserved row: ok");
+console.log("forced reserved + full-balance rows: ok");
+
+// … and "Полный баланс" has its own permanent switch, independent of the reserve.
+const forcedFull = mod.__internals.resolveSettings({ token: "smoke", alwaysShowFullBalance: true });
+const forcedFullHtml = ReactDOMServer.renderToStaticMarkup(
+	React.createElement(mod.PolzaBalanceWidget, { initialSettings: forcedFull }),
+);
+if (!forcedFullHtml.includes("Полный баланс")) throw new Error("alwaysShowFullBalance did not render the full-balance row");
+if (forcedFullHtml.includes("Зарезервировано")) throw new Error("alwaysShowFullBalance must not show the reserved row");
+console.log("forced full-balance row: ok");
 
 // Settings sanitization: the removed daily-limit field must not survive.
 const legacy = mod.__internals.sanitize(
