@@ -1,6 +1,6 @@
 {
   "name": "dsh-polza-balance",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "private": true,
   "description": "Overlay widget for the DSH Web GUI that shows the polza.ai balance, the spending limit for today and the total spent, read from the polza.ai MCP server.",
   "type": "module",
